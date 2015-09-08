@@ -1,0 +1,142 @@
+---+ Anwendung von C++11 in der Praxis
+
+Im folgenden gibt es eine Übersicht über einige neue C++11 Features und ihre praktische Anwendung.
+
+Diese Sammlung ist nicht als Lehrbuchersatz gedacht, sondern soll helfen die neuen Feature sinnvoll einzusetzen.
+---++ Lambda Funktionen
+
+Ein Lambda Funktion ist eine anonyme Funktion. In der Regel handelt es sich um kurze Funktionen für kleine Aufgaben.
+
+Lambda Funktionen werden wie folgt im Sourcecode deklariert.
+
+[capture](params) -&gt; ret { body };
+
+   * capture: Übertrag der angegebenen Variablen in den Gültigkeitsbereich des Lambda-Ausdrucks
+   * params: Übergabeparameter
+   * -&gt;; ret: Rückgabetyp (optional; Pfeil erforderlich)
+   * body: Funktionsrumpf
+---+++ Anwendungsmöglichkeiten
+---++++ Lambda Funktion als Functor/Delegate
+
+Sie werden in diesem Fall wie ein Functor genutzt, nur ist Ihre Definition viel einfacher. Lambda Funktionen können leicht als Parameter übergeben werden. Je nachdem wie der Capture definiert ist können externe Elemente genutzt werden.
+
+%BLUE%auto value = myFunc(iterator.begin, iterator.end, [pointer] () -&gt; {pointer-&gt;doSomething});%ENDCOLOR%
+
+Dieser Anwendungsfall ist bei vielen aktuellen Funktionen (std::find, etc.) der STL gegeben.
+---++++ Lambda Funktion als Callback
+
+Lambda Funktionen können auch als Typ sicherer Callback genutzt werden. Wenn man eine nicht statische Methode aufrufen möchte geht das nur über ein Objekt. Wenn jetzt einen Callback für eine Member Methode benötigt wird, dann muss ebenfalls eine Objekt Instanz genutzt werden. Dies kann über functoren wie std::function und std::bind realisert werden. Mit Lambda Funktionen geht das sehr viel einfacher.
+
+%BLUE%
+
+EmailProcessor processor;
+
+MessageSizeStore size_store;
+
+processor.setHandlerFunc( [&] (const std::string& message) { size_store.checkMessage( message ); } );
+
+%ENDCOLOR%
+
+Das Beispiel zeigt wie ein Callback erzeugt wird der die Methode checkMessage im Objekt size_store aufruft. Die Lambda Funktion dient hierbei als Gluecode, um Methoden als Callbacks zu registrieren.
+
+---++ Auto typ, decltype funktion und neue return syntax
+
+In C++11 gibt es neue variablen typen und eine geänderte return syntax.
+---+++ Type auto
+
+Eine Variable mit dem Typ auto kann Daten von jedweden Datentyp aufnehmen.Da sich der Typ auto wie ein Platzhalter verhält, kann hierdurch der Tippaufwand für komplexe Datentypen reduziert werden. Bei Rückgabewerten wird immer der passende Datentyp verwendet, implizite Casts werden so vermieden. Er verschleiert aber den Datentyp was die Analyse des Codes erschwert.
+
+%BLUE%std::list&lt;std::vector&lt;classA&gt;&gt; complexList; %ENDCOLOR%
+
+%BLUE%auto list = complexList;%ENDCOLOR%
+
+---+++ decltype() Funktion
+
+Der Variablen Typ auto verbessert die Lesbarkeit des Codes gerade bei komplexen Ausdrücken, er verschleiert dabei aber den Typ. Die Funktion decltype macht das Gegenteil sie gibt den Datentyp, der als Parameter übergeben Variable zurück.
+
+%BLUE%
+
+std::list&lt;std::vector&lt;classA&gt;&gt; complexList;
+
+auto list = complexList;
+
+decltype(list) newList; %ENDCOLOR% %GREEN% //Wir legen eine neue Liste mit dem gleichen Datentyp wie complexList an
+
+%ENDCOLOR%
+
+---+++ Neue return syntax
+
+Bisher wurde der Rückgabewert immer an den Anfang der Deklaration gestellt:
+
+%BLUE% int multiply (int x, int y); 
+%ENDCOLOR%
+
+In der neuen Schreibweise sieht der Ausdruck so aus:
+
+%BLUE% auto multiply (int x, int y) -&gt; int; 
+%ENDCOLOR%
+
+Durch die neue Syntax verändern sich die Aufrufe für scoped Typen. Bisher musste die Methode so definiert werden.
+
+%BLUE% Person::PersonType Person::getPersonType () { return _person_type; } 
+%ENDCOLOR%
+
+Mit der neuen Syntax kann man sich den Scope operator sparen. Wenn der return typ erittelt wird, wurde bereits die Klassen Definition geparsed.
+
+%BLUE% auto Person::getPersonType () -&gt; PersonType { return _person_type; } 
+%ENDCOLOR%
+
+---+++ Anwendungsmöglichkeiten
+---++++ Lambda Funktionen verwalten
+ Besonders bei der Verwendung von Lambda Funktionen ist der auto Typ sowie die decltype Funktion hilfreich, da Lambda Funktionen keinen Namen haben und jede einen einzigartigen Typ darstellt.
+
+%BLUE%
+
+auto f = [](int a, int b) -&gt; int { return a*b; };
+
+decltype(f) f2 = f; 
+%ENDCOLOR%
+
+---++++ Template Programmierung
+ Eine weiterer Einsatzmöglichkeit sind Templates. Der auto typ und die decltype Funktion erleichtern es generische Template Methoden zu schreiben. In diesem Fall können wir den Typ des Returnvalues über decltype setzten, allerdings geht dies nur mit der neuen Syntax.
+
+%BLUE% template <typename Builder> auto makeAndProcessObject (const Builder& builder) -&gt; decltype( builder.makeObject() ) { auto val = builder.makeObject(); // do stuff with val return val; } 
+%ENDCOLOR%
+
+---++ Range Based Loops
+ Mit C++11 kam die Unterstüzung von Range Based for loops. Man konnte bisher nur für Container rangebased loops erstellen die Iteratoren verwenden. Durch die neue Implementierung sind Loops für alle Klassen möglich. 
+%BLUE% map address_book; for ( auto address_entry : address_book ) { cout &lt;&lt; address_entry.first &lt;&lt; " &lt; " &lt;&lt; address_entry.second &lt;&lt; "&gt;" &lt;&lt; endl; } 
+%ENDCOLOR%
+
+---++ Smart pointer
+ Im Standard wurden Smart pointer definiert die ihren Speicher selbst verwalten.
+
+---+++ std::unique_ptr
+ Der unique_ptr verwaltet einen Pointer der nur einen Besitzer haben kann. Er kann nicht kopiert werden, soll der Pointer weitergegeben werden geht dies nur über den neuen move Mechanismus. Der unique_ptr bietet sich für alle Pointer an die nur einen Nutzer haben. 
+---+++ std::shared_ptr
+ Der shared_ptr wird genutzt wenn mehrere Elemente ein Objekt nutzen. Hierbei wird mittels Reference Counting ermittelt ob die Resource freigegeben werden kann.
+
+---+++ std::weak_ptr
+ Der weak_ptr hält eine nicht besitzende Referenz auf einen shared_ptr. Er ist hilfreich bei Objekten die sich gegenseitig referenzieren, in diesem Fall wäre es nicht möglich den shared_ptr freizugeben. Der Reference Count wäre immer größer Null. Der User kann dann die Gültigkeit per expired() oder lock() prüfen, somit besteht die Möglichkeit Pointer zu validieren bzw. einen weak_ptr in einen shrared_ptr umzuwandeln.
+
+---+++ Anwendungsmöglichkeiten
+---++++ Reduzierung von Memory leaks
+ Durch die Verwendung von Smart Pointern können Memory Leaks vermieden werden. 
+---++++ Speicherverwaltung (Cache)
+ Da bei einem weak_ptr die Gültigkeit beprüft werden kann, ergibt die Möglichkeit dynamische Speicherverwaltungen und Datenbanken zu implementieren.
+
+---++ Thread support
+ In C++11 wurde ein nativer thread support definiert. Dies erlaubt Plattform übergreifende Implementierungen für multithreaded Applikationen. Die API ähnelt stark der von pThread. Die Thread API erlaubt neben der Verwendung von Funktionen und Methoden auch Lambda Funktionen als threaded Funktion. Vor der Verwendung muss vorher geprüft werden ob der Compiler Multithreading unterstützt.
+
+---++ Constexpr
+
+---++ Regular Expressions
+
+---++ Raw Strings
+
+---++ RValue Referenzen und Move Semantik
+
+---++ using statt typedef
+
+-- Main.JensNelke - 2015-04-28
+
